@@ -19,27 +19,45 @@ setlocal EnableExtensions DisableDelayedExpansion
 for /f "tokens=2 delims=:." %%C in ('chcp') do set "OLDCP=%%C"
 chcp 65001 >nul
 
+:: /dry      only list the commands
+:: /sid SID  account whose settings are changed (passed to the elevated copy)
 set "DRYRUN="
+set "USERSID="
+:args
+if "%~1"=="" goto :args_done
 if /i "%~1"=="/dry" set "DRYRUN=1"
+if /i "%~1"=="/sid" set "USERSID=%~2"& shift
+shift
+goto :args
+:args_done
 
 call :messages
 
-:: The search policy and the power plan need administrator rights.
+:: The search policy and the power plan need administrator rights. The elevated
+:: copy gets the SID of the account that started the script, so the settings
+:: land in that account even when Windows elevates as another one
+:: (Administrator protection, or an administrator approving the prompt).
 if defined DRYRUN goto :main
 fltmc >nul 2>&1 && goto :main
 echo(%M_ELEVATE%
+for /f "tokens=2 delims=," %%S in ('whoami /user /fo csv /nh') do set "USERSID=%%~S"
 set "SELF=%~f0"
-powershell -NoProfile -Command "Start-Process -FilePath '%SELF:'=''%' -Verb RunAs" >nul 2>&1 && goto :end
+powershell -NoProfile -Command "Start-Process -FilePath '%SELF:'=''%' -ArgumentList '/sid %USERSID%' -Verb RunAs" >nul 2>&1 && goto :end
 echo(%M_NEED_ADMIN%
 pause
 goto :end
 
 :main
-set "FAILS=0"
-set "SEARCH=HKCU\Software\Microsoft\Windows\CurrentVersion\SearchSettings"
-set "CDM=HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
+set "UREG=HKCU"
+set "UCLASSES=HKCU\Software\Classes"
+if defined USERSID set "UREG=HKU\%USERSID%"& set "UCLASSES=HKU\%USERSID%_Classes"
+set "ADV=%UREG%\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+set "SEARCH=%UREG%\Software\Microsoft\Windows\CurrentVersion\SearchSettings"
+set "CDM=%UREG%\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
 set "UP_OWN=6d3f2b8e-41c7-4f0a-9e5d-2b7c8a1f4e93"
 set "BALANCED=381b4222-f694-41f0-9685-ff5bb260df2e"
+set "TOTAL=12"
+set "FAILS=0"
 
 echo(
 echo(==================================================
@@ -49,7 +67,7 @@ echo(
 if defined DRYRUN echo(%M_DRY%& echo(
 
 call :step 1 "%M_S1%"
-call :delvalue "HKCU\Software\Policies\Microsoft\Windows\Explorer" DisableSearchBoxSuggestions
+call :delvalue "%UREG%\Software\Policies\Microsoft\Windows\Explorer" DisableSearchBoxSuggestions
 call :result
 
 call :step 2 "%M_S2%"
@@ -62,26 +80,48 @@ call :run reg add "%SEARCH%" /v IsDynamicSearchBoxEnabled /t REG_DWORD /d 1 /f
 call :result
 
 call :step 4 "%M_S4%"
+call :run reg add "%ADV%" /v Start_IrisRecommendations /t REG_DWORD /d 1 /f
+call :result
+
+call :step 5 "%M_S5%"
 call :run reg add "%CDM%" /v SubscribedContent-338393Enabled /t REG_DWORD /d 1 /f
 call :run reg add "%CDM%" /v SubscribedContent-353694Enabled /t REG_DWORD /d 1 /f
 call :run reg add "%CDM%" /v SubscribedContent-353696Enabled /t REG_DWORD /d 1 /f
 call :result
 
-call :step 5 "%M_S5%"
-call :delvalue "HKCU\Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications" EnableAccountNotifications
-call :result
-
 call :step 6 "%M_S6%"
-call :delkey "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
+call :delvalue "%UREG%\Software\Microsoft\Windows\CurrentVersion\SystemSettings\AccountNotifications" EnableAccountNotifications
 call :result
 
 call :step 7 "%M_S7%"
+call :run reg add "%CDM%" /v SubscribedContent-338389Enabled /t REG_DWORD /d 1 /f
+call :run reg add "%CDM%" /v SubscribedContent-310093Enabled /t REG_DWORD /d 1 /f
+call :run reg add "%UREG%\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement" /v ScoobeSystemSettingEnabled /t REG_DWORD /d 1 /f
+call :result
+
+call :step 8 "%M_S8%"
+call :run reg add "%ADV%" /v ShowSyncProviderNotifications /t REG_DWORD /d 1 /f
+call :result
+
+call :step 9 "%M_S9%"
+call :delkey "%UCLASSES%\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
+call :result
+
+call :step 10 "%M_S10%"
+call :delvalue "%ADV%\TaskbarDeveloperSettings" TaskbarEndTask
+call :result
+
+call :step 11 "%M_S11%"
+call :stickykeys
+call :result
+
+call :step 12 "%M_S12%"
 call :run powercfg /setactive %BALANCED%
 call :delscheme %UP_OWN%
 call :result
 
-if defined DRYRUN echo(%M_DRY_DONE%& goto :end
 echo(
+if defined DRYRUN echo(%M_DRY_DONE%& goto :end
 if %FAILS% neq 0 goto :some_failed
 echo(%M_ALL_OK%
 goto :restart
@@ -101,6 +141,15 @@ endlocal
 exit /b
 
 :: ---------------------------------------------------------------------------
+:: Sticky Keys: turn the shortcut (4) and its confirmation (8) back on and keep
+:: everything else.
+:stickykeys
+set "SK=510"
+for /f "tokens=3" %%F in ('reg query "%UREG%\Control Panel\Accessibility\StickyKeys" /v Flags 2^>nul ^| find "Flags"') do set "SK=%%F"
+set /a "SK=SK | 12"
+call :run reg add "%UREG%\Control Panel\Accessibility\StickyKeys" /v Flags /t REG_SZ /d %SK% /f
+exit /b
+
 :: Deletes a registry value, a registry key or a power plan only if it exists.
 :delvalue
 reg query "%~1" /v %~2 >nul 2>&1 || goto :nothing
@@ -119,17 +168,19 @@ call :run powercfg /delete %~1
 exit /b
 
 :nothing
-if defined DRYRUN echo(      %M_NOTHING%
+if defined DRYRUN echo(        %M_NOTHING%
 exit /b
 
 :: ---------------------------------------------------------------------------
 :step
 set "STEP_FAILED="
+set "STEP_NO=%~1"
+if %~1 lss 10 set "STEP_NO= %~1"
 if defined DRYRUN goto :step_dry
-<nul set /p "=[%~1/7] %~2 ... "
+<nul set /p "=[%STEP_NO%/%TOTAL%] %~2 ... "
 exit /b
 :step_dry
-echo([%~1/7] %~2
+echo([%STEP_NO%/%TOTAL%] %~2
 exit /b
 
 :: Runs a command quietly and remembers a failure. In dry-run mode it only
@@ -139,7 +190,7 @@ if defined DRYRUN goto :run_dry
 %* >nul 2>&1 || set "STEP_FAILED=1"
 exit /b
 :run_dry
-echo(      %*
+echo(        %*
 exit /b
 
 :result
@@ -165,10 +216,15 @@ set "M_DRY=DRY RUN - nothing will change. Commands that would run:"
 set "M_S1=Start search: turn web results back on"
 set "M_S2=Start search: turn cloud content back on"
 set "M_S3=Start search: turn search highlights back on"
-set "M_S4=Settings: turn suggestions and offers back on"
-set "M_S5=Settings: turn account notifications back on"
-set "M_S6=Bring back the Windows 11 right-click menu"
-set "M_S7=Power plan: switch back to Balanced"
+set "M_S4=Start menu: turn recommendations back on"
+set "M_S5=Settings: turn suggestions and offers back on"
+set "M_S6=Settings: turn account notifications back on"
+set "M_S7=Notifications: turn Windows tips and suggestions back on"
+set "M_S8=File Explorer: turn OneDrive promotions back on"
+set "M_S9=Bring back the Windows 11 right-click menu"
+set "M_S10=Taskbar: remove End task from the right-click menu"
+set "M_S11=Turn the Sticky Keys prompt back on"
+set "M_S12=Power plan: switch back to Balanced"
 set "M_NOTHING=already the Windows default, nothing to change"
 set "M_OK=OK"
 set "M_FAILED=FAILED"
@@ -188,10 +244,15 @@ set "M_DRY=DENEME MODU - hiçbir şey değişmeyecek. Çalışacak komutlar:"
 set "M_S1=Başlat araması: internet sonuçlarını geri aç"
 set "M_S2=Başlat araması: hesap içeriklerini geri aç"
 set "M_S3=Başlat araması: arama vurgularını geri aç"
-set "M_S4=Ayarlar: öneri ve teklifleri geri aç"
-set "M_S5=Ayarlar: hesap bildirimlerini geri aç"
-set "M_S6=Windows 11 sağ tık menüsünü geri getir"
-set "M_S7=Güç planı: Dengeli'ye geri dön"
+set "M_S4=Başlat menüsü: önerileri geri aç"
+set "M_S5=Ayarlar: öneri ve teklifleri geri aç"
+set "M_S6=Ayarlar: hesap bildirimlerini geri aç"
+set "M_S7=Bildirimler: Windows ipuçlarını ve önerilerini geri aç"
+set "M_S8=Dosya Gezgini: OneDrive tanıtımlarını geri aç"
+set "M_S9=Windows 11 sağ tık menüsünü geri getir"
+set "M_S10=Görev çubuğu: Görevi sonlandır'ı sağ tık menüsünden kaldır"
+set "M_S11=Yapışkan Tuşlar uyarısını geri aç"
+set "M_S12=Güç planı: Dengeli'ye geri dön"
 set "M_NOTHING=zaten Windows varsayılanı, değişecek bir şey yok"
 set "M_OK=TAMAM"
 set "M_FAILED=HATA"
