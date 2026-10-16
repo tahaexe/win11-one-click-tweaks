@@ -33,19 +33,40 @@ Everything is a per-user registry setting, plus one power plan. Nothing is downl
 
 ## Usage
 
+### Quick start
+
+Right-click Start, open **Terminal** (no need for the administrator one) and paste:
+
+```powershell
+irm https://raw.githubusercontent.com/tahaexe/win11-one-click-tweaks/main/run.ps1 | iex
+```
+
+It downloads `win11-tweaks.bat` to your temp folder and runs it. Click **Yes** on the administrator prompt, then press **Y** at the end to restart.
+
+> [!NOTE]
+> This runs the script straight from this repository. To see what runs, read [`run.ps1`](run.ps1) and [`win11-tweaks.bat`](win11-tweaks.bat) first.
+
+### Or download the file
+
 1. Download [`win11-tweaks.bat`](win11-tweaks.bat): open it and click **Download raw file**, or use **Code → Download ZIP**.
 2. Double-click it and click **Yes** on the administrator prompt.
 3. When it finishes, press **Y** to restart.
 
-> [!TIP]
-> To see the exact commands first, run `win11-tweaks.bat /dry` in a terminal. It lists them and changes nothing.
-
 > [!NOTE]
 > Because the file comes from the internet, Windows may show "Windows protected your PC". Click **More info → Run anyway**.
 
+> [!TIP]
+> To see the exact commands first, run `win11-tweaks.bat /dry` in a terminal. It lists them and changes nothing.
+
 ## Undo
 
-Double-click [`win11-tweaks-undo.bat`](win11-tweaks-undo.bat). It puts every setting back to the Windows default and switches the power plan to **Balanced**. **End task** on the taskbar is turned off again too, because that's the Windows default. The undo script deletes the Ultimate Performance plan the script created, but leaves a plan you created yourself alone.
+Paste this in Terminal, or double-click [`win11-tweaks-undo.bat`](win11-tweaks-undo.bat):
+
+```powershell
+irm https://raw.githubusercontent.com/tahaexe/win11-one-click-tweaks/main/undo.ps1 | iex
+```
+
+It puts every setting back to the Windows default and switches the power plan to **Balanced**. **End task** on the taskbar is turned off again too, because that's the Windows default. The undo script deletes the Ultimate Performance plan the script created, but leaves a plan you created yourself alone.
 
 ## Good to know
 

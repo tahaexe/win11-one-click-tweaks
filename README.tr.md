@@ -33,19 +33,40 @@ Hepsi kullanıcıya ait kayıt defteri ayarları ve bir güç planından ibarett
 
 ## Kullanım
 
+### Hızlı başlangıç
+
+Başlat'a sağ tıklayıp **Terminal**'i aç (yönetici olarak açmana gerek yok) ve şunu yapıştır:
+
+```powershell
+irm https://raw.githubusercontent.com/tahaexe/win11-one-click-tweaks/main/run.ps1 | iex
+```
+
+Komut `win11-tweaks.bat` dosyasını geçici klasöre indirip çalıştırır. Yönetici izni penceresinde **Evet**'e tıkla, sonunda yeniden başlatmak için **E**'ye bas.
+
+> [!NOTE]
+> Bu komut betiği doğrudan bu repodan çalıştırır. Neyin çalışacağını görmek istersen önce [`run.ps1`](run.ps1) ve [`win11-tweaks.bat`](win11-tweaks.bat) dosyalarına göz at.
+
+### Ya da dosyayı indir
+
 1. [`win11-tweaks.bat`](win11-tweaks.bat) dosyasını indir: dosyayı açıp **Download raw file**'a tıkla ya da **Code → Download ZIP**'i kullan.
 2. Dosyaya çift tıkla, yönetici izni penceresinde **Evet**'e tıkla.
 3. İş bitince yeniden başlatmak için **E**'ye bas.
 
-> [!TIP]
-> Önce hangi komutların çalışacağını görmek istersen terminalde `win11-tweaks.bat /dry` komutunu çalıştır. Komutları listeler, hiçbir şeyi değiştirmez.
-
 > [!NOTE]
 > Dosya internetten geldiği için Windows "Windows bilgisayarınızı korudu" uyarısı gösterebilir. **Ek bilgi → Yine de çalıştır**'a tıkla.
 
+> [!TIP]
+> Önce hangi komutların çalışacağını görmek istersen terminalde `win11-tweaks.bat /dry` komutunu çalıştır. Komutları listeler, hiçbir şeyi değiştirmez.
+
 ## Geri alma
 
-[`win11-tweaks-undo.bat`](win11-tweaks-undo.bat) dosyasına çift tıkla. Bütün ayarları Windows varsayılanına döndürür ve güç planını **Dengeli** yapar. Windows varsayılanı bu olduğu için görev çubuğundaki **Görevi sonlandır** da kapanır. Betiğin oluşturduğu Nihai Performans planını siler, senin daha önce oluşturduğun plana dokunmaz.
+Terminal'e şunu yapıştır ya da [`win11-tweaks-undo.bat`](win11-tweaks-undo.bat) dosyasına çift tıkla:
+
+```powershell
+irm https://raw.githubusercontent.com/tahaexe/win11-one-click-tweaks/main/undo.ps1 | iex
+```
+
+Bütün ayarları Windows varsayılanına döndürür ve güç planını **Dengeli** yapar. Windows varsayılanı bu olduğu için görev çubuğundaki **Görevi sonlandır** da kapanır. Betiğin oluşturduğu Nihai Performans planını siler, senin daha önce oluşturduğun plana dokunmaz.
 
 ## Bilmekte fayda var
 
