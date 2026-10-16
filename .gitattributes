@@ -1,0 +1,2 @@
+# cmd.exe needs Windows (CRLF) line endings in batch files, so store them as-is.
+*.bat -text
